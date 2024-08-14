@@ -5,7 +5,10 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Category;
 use App\Http\Requests\CategoryRequest;
+use App\Models\User;
 use App\Repositories\Category\CategoryRepository as CategoryInterface;
+use App\Notifications\CategoryNotification;
+use Illuminate\Support\Facades\Log;
 
 class CategoryController extends Controller
 {
@@ -39,7 +42,9 @@ class CategoryController extends Controller
     {
         //Category::create($request->validated());
         try {
-            $anak = $this->categoryRepository->storeCategory($request);
+            $category = $this->categoryRepository->storeCategory($request);
+            $user = User::first();
+            $user->notify(new CategoryNotification($category, 'created'));
             return redirect()->route('categories.index')->with('success', 'Category created successfully.');
         } catch (\Throwable $e) {
             return redirect()->route('categories.index')->with('success', 'Category created Failed.');
@@ -52,11 +57,11 @@ class CategoryController extends Controller
         return view('categories.edit', compact('category'));
     }
 
-    public function update(CategoryRequest $request,$id)
+    public function update(CategoryRequest $request, $id)
     {
         //$category->update($request->validated());
         try {
-            $this->categoryRepository->updateCategory($request,$id);
+            $category = $this->categoryRepository->updateCategory($request, $id);
             return redirect()->route('categories.index')->with('success', 'Category updated successfully.');
         } catch (\Throwable $e) {
             return redirect()->route('categories.index')->with('success', 'Category updated Failed.');
@@ -66,7 +71,11 @@ class CategoryController extends Controller
     public function destroy($id)
     {
         try {
-            $this->categoryRepository->destroyCategory($id);
+            $categorydelete =  Category::find($id);
+            $category = $this->categoryRepository->destroyCategory($id);
+            $user = User::first(); // Ambil user yang akan menerima notifikasi
+            Log::info('Sending notification to ' . $user->email); // Tambahkan ini untuk debug
+            $user->notify(new CategoryNotification($categorydelete, 'deleted'));
             return redirect()->route('categories.index')->with('success', 'Category deleted successfully.');
         } catch (\Throwable $e) {
             return redirect()->route('categories.index')->with('success', 'Category deleted Failed.');
